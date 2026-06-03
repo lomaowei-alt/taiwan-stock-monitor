@@ -1,42 +1,81 @@
 #!/usr/bin/env python3
 """
 台灣股市月度績效監測 - 資料抓取腳本
-TWSE/TPEx API 會擋非台灣 IP，改用 allorigins proxy 繞過
 """
-
 import requests, json, time, os
 from datetime import datetime, timezone
 
 TWSE = "https://openapi.twse.com.tw/v1"
 TPEX = "https://www.tpex.org.tw/openapi/v1"
-
-# 多個 proxy 輪流嘗試，確保成功
-PROXIES = [
-    lambda u: f"https://api.allorigins.win/raw?url={requests.utils.quote(u)}",
-    lambda u: f"https://corsproxy.io/?url={requests.utils.quote(u)}",
-    lambda u: u,  # 直連最後嘗試
-]
-
-HEADERS = {"Accept": "application/json", "User-Agent": "Mozilla/5.0"}
 OUT_DIR = os.path.join(os.path.dirname(__file__), "..", "docs")
 
+HEADERS = {
+    "Accept": "application/json",
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Referer": "https://openapi.twse.com.tw/",
+    "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8",
+}
 
-def fetch(url, label):
-    for i, make_url in enumerate(PROXIES):
-        proxy_url = make_url(url)
+def fetch(url, label, retries=3):
+    """直連抓取，重試三次"""
+    for i in range(retries):
         try:
-            r = requests.get(proxy_url, headers=HEADERS, timeout=30)
-            r.raise_for_status()
-            data = r.json()
-            if isinstance(data, list) and len(data) > 0:
-                print(f"  ✓ {label}: {len(data)} 筆 (proxy #{i+1})")
-                return data
+            r = requests.get(url, headers=HEADERS, timeout=40)
+            if r.status_code == 200:
+                text = r.text.strip()
+                if text and text[0] == '[':
+                    data = json.loads(text)
+                    if isinstance(data, list) and len(data) > 0:
+                        print(f"  ✓ {label}: {len(data)} 筆")
+                        return data
+                    else:
+                        print(f"  ✗ {label}: 回傳空陣列")
+                else:
+                    print(f"  ✗ {label}: 非 JSON 回應 ({r.status_code}): {text[:80]}")
+            else:
+                print(f"  ✗ {label}: HTTP {r.status_code}")
         except Exception as e:
-            print(f"  ✗ {label} proxy #{i+1} 失敗: {e}")
-            time.sleep(2)
-    print(f"  ✗ {label}: 所有 proxy 失敗，回傳空陣列")
+            print(f"  ✗ {label} 第{i+1}次: {e}")
+        if i < retries - 1:
+            time.sleep(3 * (i + 1))
     return []
 
+def fetch_with_proxy(url, label):
+    """先直連，失敗再用 proxy"""
+    # 先試直連
+    result = fetch(url, label)
+    if result:
+        return result
+    # 直連失敗，試 allorigins proxy
+    proxy_url = f"https://api.allorigins.win/raw?url={requests.utils.quote(url, safe='')}"
+    print(f"  → 改用 allorigins proxy...")
+    try:
+        r = requests.get(proxy_url, headers={"Accept": "application/json"}, timeout=40)
+        if r.status_code == 200:
+            text = r.text.strip()
+            if text and text[0] == '[':
+                data = json.loads(text)
+                if isinstance(data, list) and len(data) > 0:
+                    print(f"  ✓ {label} (proxy): {len(data)} 筆")
+                    return data
+    except Exception as e:
+        print(f"  ✗ proxy 失敗: {e}")
+    # 再試 thingproxy
+    proxy2 = f"https://thingproxy.freeboard.io/fetch/{url}"
+    print(f"  → 改用 thingproxy...")
+    try:
+        r = requests.get(proxy2, headers={"Accept": "application/json"}, timeout=40)
+        if r.status_code == 200:
+            text = r.text.strip()
+            if text and text[0] == '[':
+                data = json.loads(text)
+                if isinstance(data, list) and len(data) > 0:
+                    print(f"  ✓ {label} (thingproxy): {len(data)} 筆")
+                    return data
+    except Exception as e:
+        print(f"  ✗ thingproxy 失敗: {e}")
+    print(f"  ✗ {label}: 所有方式均失敗")
+    return []
 
 def pn(v):
     if v is None or str(v).strip() in ("", "N/A", "--", "－"):
@@ -46,12 +85,10 @@ def pn(v):
     except:
         return None
 
-
 def calc_pct(a, b):
     if a is None or b is None or b == 0:
         return None
     return round((a - b) / abs(b) * 100, 1)
-
 
 def extract_ratios(row):
     gross = op = net = None
@@ -68,7 +105,6 @@ def extract_ratios(row):
             net = round(n, 1)
     return gross, op, net
 
-
 def median(vals):
     if not vals:
         return None
@@ -76,23 +112,22 @@ def median(vals):
     m = len(s) // 2
     return round(s[m] if len(s) % 2 else (s[m-1] + s[m]) / 2, 1)
 
-
 def main():
     print("=" * 50)
     print(f"台灣股市資料抓取 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 50)
 
     print("\n【上市公司】")
-    twse_rev    = fetch(f"{TWSE}/opendata/t187ap03_L",   "月營收")
-    twse_info   = fetch(f"{TWSE}/opendata/t187ap03_2",    "基本資料")
-    twse_income = fetch(f"{TWSE}/opendata/t187ap06_X_ci", "季報損益表")
+    twse_rev    = fetch_with_proxy(f"{TWSE}/opendata/t187ap03_L",   "月營收")
+    twse_info   = fetch_with_proxy(f"{TWSE}/opendata/t187ap03_2",    "基本資料")
+    twse_income = fetch_with_proxy(f"{TWSE}/opendata/t187ap06_X_ci", "季報損益表")
 
     print("\n【上櫃公司】")
-    tpex_rev    = fetch(f"{TPEX}/mopsfin_t53",                            "月營收")
-    tpex_info   = fetch(f"{TPEX}/tpex_mainboard_companies_information",    "基本資料")
-    tpex_income = fetch(f"{TPEX}/tpex_mainboard_income_statement",         "季報損益表")
+    tpex_rev    = fetch_with_proxy(f"{TPEX}/mopsfin_t53",                            "月營收")
+    tpex_info   = fetch_with_proxy(f"{TPEX}/tpex_mainboard_companies_information",    "基本資料")
+    tpex_income = fetch_with_proxy(f"{TPEX}/tpex_mainboard_income_statement",         "季報損益表")
 
-    # Build maps
+    # Build lookup maps
     twse_ind = {(r.get("公司代號") or r.get("股票代號") or "").strip(): (r.get("產業類別") or "").strip() for r in twse_info}
     tpex_ind = {(r.get("SecuritiesCompanyCode") or r.get("公司代號") or "").strip(): (r.get("IndustryCode") or r.get("IndustryName") or r.get("產業別") or "").strip() for r in tpex_info}
     twse_fin = {}
@@ -156,7 +191,7 @@ def main():
         "yoy_pos": sum(1 for c in companies if c["y"] is not None and c["y"] > 0),
         "yoy_neg": sum(1 for c in companies if c["y"] is not None and c["y"] < 0),
         "gross_med": median([c["gp"] for c in companies if c["gp"] is not None]),
-        "net_med":   median([c["np"] for c in companies if c["np"]  is not None]),
+        "net_med":   median([c["np"] for c in companies if c["np"] is not None]),
         "rev_month": rev_month,
         "updated":   datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     }
@@ -165,9 +200,13 @@ def main():
     out = os.path.join(OUT_DIR, "data.json")
     with open(out, "w", encoding="utf-8") as f:
         json.dump({"stats": stats, "companies": companies}, f, ensure_ascii=False, separators=(",", ":"))
-    print(f"✓ 已輸出 docs/data.json ({os.path.getsize(out)//1024} KB)")
-    print("完成！")
+    size_kb = os.path.getsize(out) // 1024
+    print(f"✓ 已輸出 docs/data.json ({size_kb} KB)")
 
+    if len(companies) == 0:
+        print("警告：公司數為 0，請檢查 API 是否可存取")
+        raise SystemExit(1)  # 讓 GitHub Actions 標示失敗，方便除錯
+    print("完成！")
 
 if __name__ == "__main__":
     main()
