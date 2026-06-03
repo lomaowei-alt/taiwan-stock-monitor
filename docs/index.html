@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>台灣股市月度績效監測</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0f1117;color:#e8eaf0;font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;min-height:100vh}
+.hdr{background:#161b27;border-bottom:1px solid rgba(255,255,255,.07);padding:14px 22px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;position:sticky;top:0;z-index:100}
+.logo{width:32px;height:32px;background:linear-gradient(135deg,#4f9cf9,#a78bfa);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:14px;flex-shrink:0}
+.h1{font-size:15px;font-weight:600}.h-sub{font-size:11px;color:#8b92a5;margin-top:2px}
+.badge{display:flex;align-items:center;gap:6px;background:#1e2535;border:1px solid rgba(255,255,255,.07);border-radius:20px;padding:4px 11px;font-size:12px;color:#8b92a5}
+.dot{width:7px;height:7px;border-radius:50%;background:#34d399}.dot.s{background:#fbbf24;animation:p 1.2s infinite}.dot.e{background:#f87171}
+@keyframes p{0%,100%{opacity:1}50%{opacity:.3}}
+.wrap{max-width:1600px;margin:0 auto;padding:18px 22px}
+.notice{background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.2);border-radius:6px;padding:10px 14px;font-size:12px;color:#c9940f;line-height:1.6;margin-bottom:14px}
+.notice strong{color:#fbbf24}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.sc{background:#161b27;border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:14px}
+.sl{font-size:11px;color:#565e72;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
+.sv{font-size:20px;font-weight:700;line-height:1}.ss{font-size:11px;color:#8b92a5;margin-top:3px}
+.pos{color:#f87171}.neg{color:#34d399}
+.tb{background:#161b27;border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.si{position:relative;flex:1;min-width:150px;max-width:260px}
+.si input{width:100%;background:#1e2535;border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:7px 10px 7px 28px;color:#e8eaf0;font-size:13px;outline:none}
+.si input:focus{border-color:#4f9cf9}
+.si-ic{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:#565e72;font-size:12px;pointer-events:none}
+.fg{display:flex;gap:4px;flex-wrap:wrap}
+.fb{background:#1e2535;border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:5px 11px;font-size:12px;color:#8b92a5;cursor:pointer;transition:all .15s}
+.fb:hover{border-color:#4f9cf9;color:#4f9cf9}.fb.on{background:rgba(79,156,249,.13);border-color:#4f9cf9;color:#4f9cf9}
+.ss2{background:#1e2535;border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:5px 8px;font-size:12px;color:#8b92a5;outline:none;cursor:pointer}
+.rfb{background:#1e2535;border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:5px 12px;font-size:12px;color:#8b92a5;cursor:pointer;display:flex;align-items:center;gap:5px;margin-left:auto;transition:all .15s}
+.rfb:hover{border-color:#4f9cf9;color:#4f9cf9}
+.spin{animation:rot .75s linear infinite;display:inline-block}@keyframes rot{to{transform:rotate(360deg)}}
+.tc{background:#161b27;border:1px solid rgba(255,255,255,.07);border-radius:10px;overflow:hidden}
+.tc-top{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.07)}
+.tc-ttl{font-size:13px;font-weight:600}.tc-cnt{font-size:12px;color:#565e72}
+.tscr{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+thead th{background:#1e2535;padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:#565e72;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,.07);cursor:pointer;user-select:none}
+thead th:hover{color:#e8eaf0}.nr{text-align:right!important}
+tbody tr{border-bottom:1px solid rgba(255,255,255,.05);transition:background .1s}
+tbody tr:last-child{border-bottom:none}tbody tr:hover{background:#1e2535}
+td{padding:8px 10px;font-size:13px;white-space:nowrap}
+.tc-code{font-family:monospace;font-size:12px;color:#8b92a5}
+.tc-name{font-weight:500;max-width:110px;overflow:hidden;text-overflow:ellipsis}
+.mk{display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:500}
+.mk-l{background:rgba(79,156,249,.14);color:#4f9cf9}.mk-o{background:rgba(167,139,250,.14);color:#a78bfa}
+.ind{color:#8b92a5;font-size:12px;max-width:90px;overflow:hidden;text-overflow:ellipsis}
+.na{color:#565e72;font-size:12px}
+.pag{padding:10px 14px;border-top:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px}
+.pi{font-size:12px;color:#565e72}.pbs{display:flex;gap:3px}
+.pb{background:#1e2535;border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:4px 9px;font-size:12px;color:#8b92a5;cursor:pointer;transition:all .15s}
+.pb:hover:not(:disabled){border-color:#4f9cf9;color:#4f9cf9}.pb:disabled{opacity:.3;cursor:default}
+.pb.cur{background:rgba(79,156,249,.14);border-color:#4f9cf9;color:#4f9cf9}
+.ld{padding:60px;text-align:center;color:#8b92a5}
+.lr{width:28px;height:28px;border:2.5px solid rgba(255,255,255,.1);border-top-color:#4f9cf9;border-radius:50%;animation:rot .75s linear infinite;margin:0 auto 14px}
+.er{padding:50px;text-align:center}
+.et{font-size:15px;font-weight:600;margin-bottom:8px}.ed{color:#8b92a5;font-size:13px;line-height:1.7;margin-bottom:16px}
+@media(max-width:700px){.wrap{padding:10px}.stats{grid-template-columns:1fr 1fr}thead th:nth-child(n+9){display:none}tbody td:nth-child(n+9){display:none}}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <div style="display:flex;align-items:center;gap:10px">
+    <div class="logo">台</div>
+    <div><div class="h1">台灣股市月度績效監測</div><div class="h-sub" id="sub">上市 + 上櫃 全覽</div></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <div class="badge"><div class="dot" id="dot"></div><span id="stxt">載入中</span></div>
+    <div class="badge" id="timeBadge" style="display:none">🕐 <span id="timeTxt"></span></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="notice">
+    <strong>📋 資料說明：</strong>資料每天早上 10:00（台灣時間）自動從台灣證交所 & 櫃買中心官方 API 更新。月營收每月 5~10 日公告；毛利率、營業利益率、淨利率來自最新季報（每季一次）。
+  </div>
+
+  <div class="stats">
+    <div class="sc"><div class="sl">監測公司</div><div class="sv" id="s0">—</div><div class="ss">上市 + 上櫃</div></div>
+    <div class="sc"><div class="sl">月營收已公告</div><div class="sv" id="s1">—</div><div class="ss" id="s1b">—</div></div>
+    <div class="sc"><div class="sl">YoY 正成長</div><div class="sv pos" id="s2">—</div><div class="ss">家公司</div></div>
+    <div class="sc"><div class="sl">YoY 負成長</div><div class="sv neg" id="s3">—</div><div class="ss">家公司</div></div>
+    <div class="sc"><div class="sl">毛利率中位數</div><div class="sv" id="s4">—</div><div class="ss">最新季報</div></div>
+    <div class="sc"><div class="sl">淨利率中位數</div><div class="sv" id="s5">—</div><div class="ss">最新季報</div></div>
+  </div>
+
+  <div class="tb">
+    <div class="si"><span class="si-ic">🔍</span><input type="search" id="sq" placeholder="代號或名稱..." oninput="af()"></div>
+    <div class="fg" id="mbt">
+      <button class="fb on" onclick="sm('a',this)">全部</button>
+      <button class="fb" onclick="sm('L',this)">上市</button>
+      <button class="fb" onclick="sm('O',this)">上櫃</button>
+    </div>
+    <div class="fg" id="ibt"></div>
+    <select class="ss2" id="ss3" onchange="af()">
+      <option value="yd">YoY 由高到低</option><option value="ya">YoY 由低到高</option>
+      <option value="md">MoM 由高到低</option><option value="ma">MoM 由低到高</option>
+      <option value="gd">毛利率 由高到低</option><option value="od">營業利益率 由高到低</option>
+      <option value="nd">淨利率 由高到低</option><option value="rd">月營收 由高到低</option>
+      <option value="ca">股票代號</option>
+    </select>
+    <button class="rfb" onclick="loadData()"><span id="rfi">↻</span> 重新整理</button>
+  </div>
+
+  <div class="tc">
+    <div class="tc-top"><span class="tc-ttl">公司績效總覽</span><span class="tc-cnt" id="cnt">—</span></div>
+    <div id="ta"><div class="ld"><div class="lr"></div><div>載入資料中...</div></div></div>
+    <div class="pag" id="pg" style="display:none"></div>
+  </div>
+</div>
+
+<script>
+const PAGE=50;
+let all=[],fil=[],cur=1,mf='a',indF='all';
+
+async function loadData(){
+  setSt('s','載入中');
+  document.getElementById('rfi').className='spin';
+  try{
+    // 加上時間戳避免瀏覽器 cache
+    const r=await fetch('data.json?t='+Date.now());
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const json=await r.json();
+    all=json.companies||[];
+    const st=json.stats||{};
+
+    // 統計卡
+    document.getElementById('s0').textContent=(st.total||all.length).toLocaleString();
+    document.getElementById('s1').textContent=all.filter(c=>c.r>0).length.toLocaleString();
+    document.getElementById('s1b').textContent=st.rev_month?'資料期間：'+st.rev_month:'最新公告';
+    document.getElementById('s2').textContent=(st.yoy_pos||0).toLocaleString();
+    document.getElementById('s3').textContent=(st.yoy_neg||0).toLocaleString();
+    document.getElementById('s4').textContent=st.gross_med!=null?fp(st.gross_med):'—';
+    document.getElementById('s5').textContent=st.net_med!=null?fp(st.net_med):'—';
+    document.getElementById('sub').textContent=`上市 ${st.listed||''} 家 ＋ 上櫃 ${st.otc||''} 家`;
+
+    // 更新時間
+    if(st.updated){
+      document.getElementById('timeBadge').style.display='flex';
+      document.getElementById('timeTxt').textContent=st.updated;
+    }
+
+    buildInds(all);
+    af();
+    setSt('ok',`${all.length.toLocaleString()} 家公司`);
+  }catch(e){
+    console.error(e);
+    setSt('e','載入失敗');
+    document.getElementById('ta').innerHTML=`<div class="er">
+      <div class="et">⚠️ 無法載入資料</div>
+      <div class="ed">請確認你的網站已啟用 GitHub Pages，<br>且 GitHub Actions 已成功執行過至少一次。<br><br>錯誤：${esc(e.message)}</div>
+      <button onclick="loadData()" style="background:#4f9cf9;color:#fff;border:none;border-radius:6px;padding:8px 18px;font-size:13px;cursor:pointer">重試</button>
+    </div>`;
+  }
+  document.getElementById('rfi').className='';
+}
+
+function buildInds(data){
+  const inds=[...new Set(data.map(d=>d.g).filter(Boolean))].sort();
+  const w=document.getElementById('ibt');
+  w.innerHTML='<button class="fb on" onclick="setI(\'all\',this)">所有產業</button>';
+  inds.forEach(i=>{
+    w.innerHTML+=`<button class="fb" onclick="setI(${JSON.stringify(i)},this)">${esc(i)}</button>`;
+  });
+}
+function setI(v,btn){indF=v;document.querySelectorAll('#ibt .fb').forEach(b=>b.classList.remove('on'));btn.classList.add('on');af();}
+function sm(m,btn){mf=m;document.querySelectorAll('#mbt .fb').forEach(b=>b.classList.remove('on'));btn.classList.add('on');af();}
+
+function af(){
+  const q=document.getElementById('sq').value.trim().toLowerCase();
+  const s=document.getElementById('ss3').value;
+  let d=[...all];
+  if(mf!=='a') d=d.filter(x=>x.m===mf);
+  if(indF!=='all') d=d.filter(x=>x.g===indF);
+  if(q) d=d.filter(x=>x.c.includes(q)||x.n.toLowerCase().includes(q));
+  const sm2={
+    yd:(a,b)=>(b.y??-9999)-(a.y??-9999), ya:(a,b)=>(a.y??9999)-(b.y??9999),
+    md:(a,b)=>(b.mo??-9999)-(a.mo??-9999), ma:(a,b)=>(a.mo??9999)-(b.mo??9999),
+    gd:(a,b)=>(b.gp??-9999)-(a.gp??-9999), od:(a,b)=>(b.op??-9999)-(a.op??-9999),
+    nd:(a,b)=>(b.np??-9999)-(a.np??-9999), rd:(a,b)=>(b.r??0)-(a.r??0),
+    ca:(a,b)=>a.c.localeCompare(b.c)
+  };
+  d.sort(sm2[s]||sm2.yd);
+  fil=d; cur=1; render();
+}
+
+function render(){
+  const tot=fil.length,pages=Math.ceil(tot/PAGE),st=(cur-1)*PAGE,sl=fil.slice(st,st+PAGE);
+  document.getElementById('cnt').textContent=`共 ${tot.toLocaleString()} 家`;
+  if(!tot){
+    document.getElementById('ta').innerHTML='<div class="ld" style="padding:2rem">沒有符合條件的公司</div>';
+    document.getElementById('pg').style.display='none';
+    return;
+  }
+  const fmt=v=>v!=null
+    ?`<span class="${v>0?'pos':v<0?'neg':''}">${v>0?'+':''}${v.toFixed(1)}%</span>`
+    :'<span class="na">—</span>';
+
+  let h='<div class="tscr"><table><thead><tr>'
+    +'<th style="width:32px">#</th>'
+    +'<th style="width:54px" onclick="cs(\'ca\')">代號</th>'
+    +'<th style="width:110px">公司</th>'
+    +'<th style="width:52px">市場</th>'
+    +'<th style="width:88px">產業</th>'
+    +'<th class="nr" style="width:96px" onclick="cs(\'rd\')">月營收(千) ↕</th>'
+    +'<th class="nr" style="width:78px" onclick="cs(\'yd\')">YoY% ↕</th>'
+    +'<th class="nr" style="width:78px" onclick="cs(\'md\')">MoM% ↕</th>'
+    +'<th class="nr" style="width:70px" onclick="cs(\'gd\')">毛利率% ↕</th>'
+    +'<th class="nr" style="width:80px" onclick="cs(\'od\')">營業利益率% ↕</th>'
+    +'<th class="nr" style="width:70px" onclick="cs(\'nd\')">淨利率% ↕</th>'
+    +'</tr></thead><tbody>';
+
+  sl.forEach((c,i)=>{
+    h+=`<tr>
+      <td style="color:#565e72;font-size:12px">${st+i+1}</td>
+      <td class="tc-code">${esc(c.c)}</td>
+      <td class="tc-name" title="${esc(c.n)}">${esc(c.n)}</td>
+      <td><span class="mk ${c.m==='L'?'mk-l':'mk-o'}">${c.m==='L'?'上市':'上櫃'}</span></td>
+      <td class="ind" title="${esc(c.g)}">${esc(c.g||'')}</td>
+      <td class="nr">${fr(c.r)}</td>
+      <td class="nr">${fmt(c.y)}</td>
+      <td class="nr">${fmt(c.mo)}</td>
+      <td class="nr">${fmt(c.gp)}</td>
+      <td class="nr">${fmt(c.op)}</td>
+      <td class="nr">${fmt(c.np)}</td>
+    </tr>`;
+  });
+  h+='</tbody></table></div>';
+  document.getElementById('ta').innerHTML=h;
+
+  const pg=document.getElementById('pg');
+  pg.style.display='flex';
+  let ph=`<span class="pi">第 ${st+1}–${Math.min(st+PAGE,tot)} 筆，共 ${tot} 筆</span><div class="pbs">`;
+  ph+=`<button class="pb" ${cur===1?'disabled':''} onclick="gp(${cur-1})">‹</button>`;
+  prng(cur,pages).forEach(p=>{
+    ph+=p==='…'?'<span class="pb" style="cursor:default">…</span>'
+      :`<button class="pb${p===cur?' cur':''}" onclick="gp(${p})">${p}</button>`;
+  });
+  ph+=`<button class="pb" ${cur===pages?'disabled':''} onclick="gp(${cur+1})">›</button></div>`;
+  pg.innerHTML=ph;
+}
+
+function prng(c,t){
+  if(t<=7) return Array.from({length:t},(_,i)=>i+1);
+  if(c<=4) return[1,2,3,4,5,'…',t];
+  if(c>=t-3) return[1,'…',t-4,t-3,t-2,t-1,t];
+  return[1,'…',c-1,c,c+1,'…',t];
+}
+function gp(n){cur=n;render();window.scrollTo({top:0,behavior:'smooth'});}
+function cs(col){
+  const s=document.getElementById('ss3');
+  const d=col+'d', a=col+'a';
+  const hasA=[...s.options].some(o=>o.value===a);
+  if(s.value===d&&hasA) s.value=a; else s.value=d;
+  af();
+}
+function fp(v){if(v==null||isNaN(v))return'—';return(v>0?'+':'')+Number(v).toFixed(1)+'%';}
+function fr(v){
+  if(!v||isNaN(v)) return'<span class="na">—</span>';
+  if(v>=1e9) return(v/1e9).toFixed(2)+' B';
+  if(v>=1e6) return(v/1e6).toFixed(2)+' M';
+  return Math.round(v).toLocaleString();
+}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function setSt(t,m){
+  document.getElementById('dot').className='dot'+(t==='s'?' s':t==='e'?' e':'');
+  document.getElementById('stxt').textContent=m;
+}
+
+loadData();
+</script>
+</body>
+</html>
