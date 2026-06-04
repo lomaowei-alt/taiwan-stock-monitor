@@ -133,7 +133,7 @@ td{padding:8px 10px;font-size:13px;white-space:nowrap}
     <div class="sc"><div class="sl">月營收已公告</div><div class="sv" id="s1">—</div><div class="ss" id="s1b">—</div></div>
     <div class="sc"><div class="sl">YoY 正成長</div><div class="sv pos" id="s2">—</div><div class="ss">家公司</div></div>
     <div class="sc"><div class="sl">YoY 負成長</div><div class="sv neg" id="s3">—</div><div class="ss">家公司</div></div>
-    <div class="sc"><div class="sl">四層全通過</div><div class="sv" id="s4" style="color:#fbbf24">—</div><div class="ss">精選標的</div></div>
+    <div class="sc"><div class="sl">三層全通過</div><div class="sv" id="s4" style="color:#fbbf24">—</div><div class="ss" id="s4ind">當前產業</div></div>
     <div class="sc"><div class="sl">毛利率中位數</div><div class="sv" id="s5">—</div><div class="ss">最新季報</div></div>
   </div>
 
@@ -214,15 +214,7 @@ td{padding:8px 10px;font-size:13px;white-space:nowrap}
       </div>
     </div>
 
-    <!-- Layer 4 -->
-    <div class="layer">
-      <div class="layer-hdr">
-        <span class="layer-badge" style="background:rgba(167,139,250,.15);color:#a78bfa">第四層</span>
-        <span class="layer-title">產業別篩選</span>
-        <div class="layer-toggle" onclick="toggleLayer(4)">
-          <span id="l4txt">啟用</span>
-          <div class="toggle-sw on" id="l4sw"></div>
-        </div>
+
       </div>
       <div class="layer-desc">選擇關注的產業（可多選，不選等於全選）</div>
       <div class="layer-body">
@@ -230,9 +222,6 @@ td{padding:8px 10px;font-size:13px;white-space:nowrap}
           <button class="fb on" onclick="setInd('all',this)">所有產業</button>
         </div>
       </div>
-    </div>
-
-  </div>
 
   <!-- Toolbar -->
   <div class="toolbar">
@@ -241,6 +230,9 @@ td{padding:8px 10px;font-size:13px;white-space:nowrap}
       <button class="fb on" onclick="sm('a',this)">全部</button>
       <button class="fb" onclick="sm('L',this)">上市</button>
       <button class="fb" onclick="sm('O',this)">上櫃</button>
+    </div>
+    <div class="fg" id="indBtns">
+      <button class="fb on" onclick="setInd('all',this)">所有產業</button>
     </div>
     <select class="ss2" id="ss3" onchange="applyFilters()">
       <option value="consec_d">連續月數 由高到低</option>
@@ -368,7 +360,10 @@ function applyFilters(){
   if(mf!=='a')d=d.filter(x=>x.m===mf);
   if(q)d=d.filter(x=>x.c.includes(q)||x.n.toLowerCase().includes(q));
   // Apply layers
-  d=d.filter(c=>passL1(c)&&passL2(c)&&passL3(c)&&passL4(c));
+  // Layer filters (quality)
+  d=d.filter(c=>passL1(c)&&passL2(c)&&passL3(c));
+  // Industry filter (independent pre-filter)
+  if(indF!=='all') d=d.filter(c=>c.g===indF);
   const sm2={
     consec_d:(a,b)=>(b.consec_yoy||0)-(a.consec_yoy||0),
     yd:(a,b)=>(b.y??-9999)-(a.y??-9999),ya:(a,b)=>(a.y??9999)-(b.y??9999),
@@ -385,11 +380,11 @@ function applyFilters(){
   fil=d;cur=1;
 
   // Update s4 (all 4 layers)
-  const all4=all.filter(c=>passL1(c)&&passL2(c)&&passL3(c)&&passL4(c));
+  const all4=all.filter(c=>passL1(c)&&passL2(c)&&passL3(c)&&(indF==="all"||c.g===indF));
   document.getElementById('s4').textContent=all4.length.toLocaleString();
 
   // Result bar
-  const layersOn=[l1On,l2On,l3On,l4On].filter(Boolean).length;
+  const layersOn=[l1On,l2On,l3On].filter(Boolean).length;
   const rb=document.getElementById('resultBar');
   if(layersOn>0){
     rb.innerHTML=`<span class="result-count">篩選結果：<strong>${d.length}</strong> 家公司（已啟用 ${layersOn} 層篩選，全市場 ${all.length} 家）</span>`;
