@@ -16,12 +16,12 @@ def fetch_json(url, label):
             text = r.text.strip()
             if text.startswith("["):
                 data = json.loads(text)
-                print(f"  ✓ {label}: {len(data)} 筆")
-                if data:
-                    print(f"  欄位: {list(data[0].keys())}")
+                print(f"  ✓ {label}: {len(data)} 筆, 欄位: {list(data[0].keys()) if data else '[]'}")
                 return data
+            else:
+                print(f"  ✗ 非 JSON: {text[:80]}")
     except Exception as e:
-        print(f"  ✗ {label}: {e}")
+        print(f"  ✗ {e}")
     return []
 
 def fetch_finmind(dataset, start_date):
@@ -35,13 +35,14 @@ def fetch_finmind(dataset, start_date):
                 data = d.get("data", [])
                 print(f"  ✓ FinMind {dataset}: {len(data)} 筆")
                 return data
+            print(f"  ✗ {d.get('msg')}")
     except Exception as e:
-        print(f"  ✗ FinMind {dataset}: {e}")
+        print(f"  ✗ FinMind: {e}")
     return []
 
 def pn(v):
     if v is None or str(v).strip() in ("", "N/A", "--", "－", "***"): return None
-    try: return float(str(v).replace(",", "").replace("%",""))
+    try: return float(str(v).replace(",", "").replace("%", ""))
     except: return None
 
 def pct(a, b):
@@ -53,22 +54,15 @@ def median(vals):
     s = sorted(vals); m = len(s) // 2
     return round(s[m] if len(s) % 2 else (s[m-1] + s[m]) / 2, 1)
 
-def get_val(row, *keys):
-    """Try multiple possible key names"""
-    for k in keys:
-        v = row.get(k)
-        if v is not None and str(v).strip() not in ("", "N/A", "--", "***"):
-            return v
-    return None
-
 def main():
     today = datetime.date.today()
     print("=" * 50)
     print(f"台灣股市資料抓取 {today}")
     print("=" * 50)
 
-    print("\n【上市月營收 - TWSE】")
-    twse_rev = fetch_json("https://openapi.twse.com.tw/v1/opendata/t187ap03_L", "月營收")
+    print("\n【上市月營收 - t187ap04_L】")
+    # 正確的月營收 endpoint 是 t187ap04_L，不是 t187ap03_L
+    twse_rev = fetch_json("https://openapi.twse.com.tw/v1/opendata/t187ap04_L", "上市月營收")
 
     print("\n【公司基本資料 - FinMind】")
     fm_info = fetch_finmind("TaiwanStockInfo", "2020-01-01")
@@ -87,29 +81,21 @@ def main():
     companies = []
     rev_month = ""
 
-    # 整理上市月營收 - 嘗試所有可能的欄位名稱
+    # 整理上市月營收
+    # t187ap04_L 欄位: 出表日期, 公司代號, 公司名稱, 當月營收, 當月累計營收,
+    #                  去年當月營收, 去年累計營收, 前期比較增減(%), 去年同期比較增減(%)
     for r in twse_rev:
-        code = str(get_val(r, "公司代號", "stock_id", "StockCode") or "").strip()
+        code = str(r.get("公司代號", "")).strip()
         if not code or len(code) != 4: continue
-
-        # 月營收 - 多種可能的欄位名
-        rev = pn(get_val(r, "當月營收", "revenue", "MonthlyRevenue", "Revenue"))
+        rev = pn(r.get("當月營收"))
         if not rev or rev <= 0: continue
-
-        name = str(get_val(r, "公司名稱", "stock_name", "CompanyName") or "").strip()
-
-        # YoY - 多種可能
-        yoy_raw = get_val(r, "當月營收年增率", "去年同期比較增減(%)", "YoY", "revenue_year")
-        yoy = pn(yoy_raw) if yoy_raw is not None else pct(rev, pn(get_val(r, "去年當月營收", "去年同月營收", "last_year_revenue")))
-
-        # MoM - 多種可能
-        mom_raw = get_val(r, "當月營收月增率", "前期比較增減(%)", "MoM", "revenue_month")
-        mom = pn(mom_raw) if mom_raw is not None else pct(rev, pn(get_val(r, "上月營收", "last_month_revenue")))
-
-        date_val = get_val(r, "出表日期", "date", "Date", "資料年月")
-        if date_val and not rev_month:
-            rev_month = str(date_val)
-
+        name = str(r.get("公司名稱", "")).strip()
+        yoy = pn(r.get("去年同期比較增減(%)"))
+        mom = pn(r.get("前期比較增減(%)"))
+        if yoy is None:
+            yoy = pct(rev, pn(r.get("去年當月營收")))
+        if r.get("出表日期") and not rev_month:
+            rev_month = str(r["出表日期"])
         companies.append({
             "c": code, "n": name,
             "m": mkt_map.get(code, "L"),
@@ -120,19 +106,19 @@ def main():
             "gp": None, "op": None, "np": None
         })
 
-    print(f"\n  上市公司整理完成: {len(companies)} 家")
+    print(f"  上市整理完成: {len(companies)} 家")
 
     # 整理上櫃月營收
     for r in tpex_rev:
-        code = str(get_val(r, "SecuritiesCompanyCode", "公司代號", "stock_id") or "").strip()
+        code = str(r.get("SecuritiesCompanyCode") or r.get("公司代號") or "").strip()
         if not code or len(code) != 4: continue
-        rev = pn(get_val(r, "MonthlyRevenue", "當月營收", "revenue"))
+        rev = pn(r.get("MonthlyRevenue") or r.get("當月營收"))
         if not rev or rev <= 0: continue
-        name = str(get_val(r, "CompanyName", "公司名稱", "stock_name") or "").strip()
-        yoy_raw = get_val(r, "YoYGrowthRate", "MonthlyRevenueGrowthRate", "當月營收年增率")
-        mom_raw = get_val(r, "MoMGrowthRate", "當月營收月增率")
-        yoy = pn(yoy_raw) if yoy_raw is not None else pct(rev, pn(get_val(r, "RevenueLYSameMonth", "去年同月營收")))
-        mom = pn(mom_raw) if mom_raw is not None else pct(rev, pn(get_val(r, "RevenuePrevMonth", "上月營收")))
+        name = str(r.get("CompanyName") or r.get("公司名稱") or "").strip()
+        yoy_raw = r.get("YoYGrowthRate") or r.get("MonthlyRevenueGrowthRate")
+        mom_raw = r.get("MoMGrowthRate")
+        yoy = pn(yoy_raw) if yoy_raw not in (None,"","N/A") else pct(rev, pn(r.get("RevenueLYSameMonth") or r.get("去年同月營收")))
+        mom = pn(mom_raw) if mom_raw not in (None,"","N/A") else None
         companies.append({
             "c": code, "n": name, "m": "O",
             "g": ind_map.get(code, ""),
@@ -145,7 +131,7 @@ def main():
     companies.sort(key=lambda x: x["c"])
     listed = sum(1 for c in companies if c["m"] == "L")
     otc    = sum(1 for c in companies if c["m"] == "O")
-    print(f"✓ 共 {len(companies)} 家（上市 {listed}，上櫃 {otc}）")
+    print(f"\n✓ 共 {len(companies)} 家（上市 {listed}，上櫃 {otc}）")
 
     stats = {
         "total": len(companies), "listed": listed, "otc": otc,
