@@ -150,11 +150,11 @@ td{padding:8px 10px;font-size:13px;white-space:nowrap}
           <div class="toggle-sw on" id="l1sw"></div>
         </div>
       </div>
-      <div class="layer-desc">月營收年增率連續 N 個月 ≥ 門檻值，且最近一季毛利率與營業利益率均為 YoY 正成長</div>
+      <div class="layer-desc">月營收年增率連續 N 個月 ≥ 門檻值，且最近一季毛利率與營業利益率均為 YoY 正成長（連續月數每月累積，建議初期設為 1，資料累積 3 個月後再提高門檻）</div>
       <div class="layer-body">
         <div class="ctrl-row">
           <span class="lbl">連續月數 ≥</span>
-          <input class="numInput" type="number" id="l1months" value="3" min="1" max="6" onchange="applyFilters()">
+          <input class="numInput" type="number" id="l1months" value="1" min="1" max="6" onchange="applyFilters()">
           <span class="lbl">月</span>
           <span class="lbl" style="margin-left:12px">YoY 門檻 ≥</span>
           <input class="numInput" type="number" id="l1thresh" value="5" min="0" max="50" onchange="applyFilters()">
