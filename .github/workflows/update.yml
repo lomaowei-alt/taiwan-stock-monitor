@@ -26,7 +26,9 @@ jobs:
       - name: 抓取台灣股市資料
         env:
           FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
-        run: python scripts/fetch_data.py
+        run: |
+          echo "Token length: ${#FINMIND_TOKEN}"
+          python scripts/fetch_data.py
         
       - name: 將 data.json commit 回 repository
         run: |
