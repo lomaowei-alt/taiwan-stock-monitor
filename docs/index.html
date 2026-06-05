@@ -70,7 +70,7 @@ body{background:#0f1117;color:#e8eaf0;font-family:'Segoe UI',system-ui,sans-seri
 .tscr{overflow-x:auto}
 table{width:100%;border-collapse:collapse}
 thead th{background:#1e2535;padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:#565e72;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,.07);cursor:pointer;user-select:none}
-thead th:hover{color:#e8eaf0}.nr{text-align:right!important}
+thead th:hover{color:#e8eaf0}thead th[onclick]{user-select:none}.nr{text-align:right!important}
 tbody tr{border-bottom:1px solid rgba(255,255,255,.05);transition:background .1s}
 tbody tr:last-child{border-bottom:none}
 tbody tr:hover{background:#1e2535}
@@ -216,12 +216,7 @@ td{padding:8px 10px;font-size:13px;white-space:nowrap}
 
 
       </div>
-      <div class="layer-desc">選擇關注的產業（可多選，不選等於全選）</div>
-      <div class="layer-body">
-        <div class="fg" id="indBtns">
-          <button class="fb on" onclick="setInd('all',this)">所有產業</button>
-        </div>
-      </div>
+
 
   <!-- Toolbar -->
   <div class="toolbar">
@@ -434,22 +429,29 @@ function render(){
     return`<span class="${cls}">${s}${v}</span>`;
   };
 
+  const curSort=document.getElementById('ss3').value;
+  function th(col,label,w,nr=true){
+    const active=curSort===col+'_d'||curSort===col+'_a';
+    const arrow=curSort===col+'_d'?'↓':curSort===col+'_a'?'↑':'↕';
+    const style=`width:${w};cursor:pointer;${active?'color:#4f9cf9;':''}`;
+    return `<th class="${nr?'nr':''}" style="${style}" onclick="colSort('${col}')" title="點擊排序">${label} <span style="opacity:${active?1:.35}">${arrow}</span></th>`;
+  }
   let h='<div class="tscr"><table><thead><tr>'
     +'<th style="width:28px">#</th>'
-    +'<th style="width:52px">代號</th>'
+    +'<th style="width:52px" onclick="colSort(\'ca\')" style="cursor:pointer">代號</th>'
     +'<th style="width:100px">公司</th>'
     +'<th style="width:48px">市場</th>'
     +'<th style="width:80px">產業</th>'
-    +'<th class="nr" style="width:60px" title="月營收YoY連續≥門檻月數">連續月↕</th>'
-    +'<th class="nr" style="width:88px">月營收(千)</th>'
-    +'<th class="nr" style="width:72px">YoY%</th>'
-    +'<th class="nr" style="width:72px">MoM%</th>'
-    +'<th class="nr" style="width:68px">毛利率%</th>'
-    +'<th class="nr" style="width:68px">營業利益率%</th>'
-    +'<th class="nr" style="width:68px">淨利率%</th>'
-    +'<th class="nr" style="width:90px">法人買超(股)</th>'
-    +'<th class="nr" style="width:72px">市值(億)</th>'
-    +'<th style="width:60px" title="各層篩選通過狀態">篩選層</th>'
+    +th('consec','連續月',  '60px')
+    +th('rd',   '月營收(千)','88px')
+    +th('yd',   'YoY%',     '72px')
+    +th('md',   'MoM%',     '72px')
+    +th('gd',   '毛利率%',  '68px')
+    +th('od',   '營業利益率%','68px')
+    +th('nd',   '淨利率%',  '68px')
+    +th('inst', '法人買超(股)','90px')
+    +th('cap',  '市值(億)', '72px')
+    +'<th style="width:60px">篩選層</th>'
     +'</tr></thead><tbody>';
 
   sl.forEach((c,i)=>{
@@ -493,6 +495,14 @@ function render(){
 
 function prng(c,t){if(t<=7)return Array.from({length:t},(_,i)=>i+1);if(c<=4)return[1,2,3,4,5,'…',t];if(c>=t-3)return[1,'…',t-4,t-3,t-2,t-1,t];return[1,'…',c-1,c,c+1,'…',t];}
 function gp(n){cur=n;render();window.scrollTo({top:0,behavior:'smooth'});}
+function colSort(col){
+  const s=document.getElementById('ss3');
+  const opts=[...s.options].map(o=>o.value);
+  const desc=col+'_d', asc=col+'_a';
+  if(s.value===desc && opts.includes(asc)) s.value=asc;
+  else if(opts.includes(desc)) s.value=desc;
+  applyFilters();
+}
 function fp(v){if(v==null||isNaN(v))return'—';return(v>0?'+':'')+Number(v).toFixed(1)+'%';}
 function fr(v){if(!v||isNaN(v))return'<span class="na">—</span>';if(v>=1e9)return(v/1e9).toFixed(2)+' B';if(v>=1e6)return(v/1e6).toFixed(2)+' M';return Math.round(v).toLocaleString();}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
