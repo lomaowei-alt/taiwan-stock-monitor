@@ -238,24 +238,24 @@ td{padding:8px 10px;font-size:13px;white-space:nowrap}
       <button class="fb" onclick="sm('O',this)">上櫃</button>
     </div>
     <select class="ss2" id="ss3" onchange="applyFilters()">
-      <option value="consec_d">連續月數 由高到低</option>
-      <option value="consec_a">連續月數 由低到高</option>
-      <option value="yd">YoY 由高到低</option>
-      <option value="ya">YoY 由低到高</option>
-      <option value="md">MoM 由高到低</option>
-      <option value="ma">MoM 由低到高</option>
-      <option value="gd">毛利率 由高到低</option>
-      <option value="ga">毛利率 由低到高</option>
-      <option value="od">營業利益率 由高到低</option>
-      <option value="oa">營業利益率 由低到高</option>
-      <option value="nd">淨利率 由高到低</option>
-      <option value="na">淨利率 由低到高</option>
-      <option value="rd">月營收 由高到低</option>
-      <option value="ra">月營收 由低到高</option>
-      <option value="inst_d">法人買超 由高到低</option>
-      <option value="inst_a">法人買超 由低到高</option>
-      <option value="cap_d">市值 由高到低</option>
-      <option value="cap_a">市值 由低到高</option>
+      <option value="consec_d">連續月數 ↓</option>
+      <option value="consec_a">連續月數 ↑</option>
+      <option value="yd_d">YoY% ↓</option>
+      <option value="yd_a">YoY% ↑</option>
+      <option value="md_d">MoM% ↓</option>
+      <option value="md_a">MoM% ↑</option>
+      <option value="gd_d">毛利率% ↓</option>
+      <option value="gd_a">毛利率% ↑</option>
+      <option value="od_d">營業利益率% ↓</option>
+      <option value="od_a">營業利益率% ↑</option>
+      <option value="nd_d">淨利率% ↓</option>
+      <option value="nd_a">淨利率% ↑</option>
+      <option value="rd_d">月營收 ↓</option>
+      <option value="rd_a">月營收 ↑</option>
+      <option value="inst_d">法人買超 ↓</option>
+      <option value="inst_a">法人買超 ↑</option>
+      <option value="cap_d">市值 ↓</option>
+      <option value="cap_a">市值 ↑</option>
       <option value="ca">股票代號</option>
     </select>
     <button class="rfb" onclick="loadData()"><span id="rfi">↻</span> 重新整理</button>
@@ -271,21 +271,53 @@ td{padding:8px 10px;font-size:13px;white-space:nowrap}
 </div>
 
 <script>
-const PAGE=50;
-let all=[],fil=[],cur=1,mf='a',indF='all',l1On=true,l2On=true,l3On=true,l4On=true;
-let l1finMode='both', l2Mode='both';
 
-// Layer toggles
+const PAGE=50;
+let all=[],fil=[],cur=1,mf='a',indF='all';
+let l1On=true,l2On=true,l3On=true;
+let l1finMode='both',l2Mode='both';
+let sortKey='consec_d';
+
+// ── Sort map ───────────────────────────────────────────────────────
+const SORTS={
+  consec_d:(a,b)=>(b.consec_yoy||0)-(a.consec_yoy||0),
+  consec_a:(a,b)=>(a.consec_yoy||0)-(b.consec_yoy||0),
+  yd_d:(a,b)=>(b.y??-9999)-(a.y??-9999),
+  yd_a:(a,b)=>(a.y??9999)-(b.y??9999),
+  md_d:(a,b)=>(b.mo??-9999)-(a.mo??-9999),
+  md_a:(a,b)=>(a.mo??9999)-(b.mo??9999),
+  gd_d:(a,b)=>(b.gp??-9999)-(a.gp??-9999),
+  gd_a:(a,b)=>(a.gp??9999)-(b.gp??9999),
+  od_d:(a,b)=>(b.op??-9999)-(a.op??-9999),
+  od_a:(a,b)=>(a.op??9999)-(b.op??9999),
+  nd_d:(a,b)=>(b.np??-9999)-(a.np??-9999),
+  nd_a:(a,b)=>(a.np??9999)-(b.np??9999),
+  rd_d:(a,b)=>(b.r??0)-(a.r??0),
+  rd_a:(a,b)=>(a.r??0)-(b.r??0),
+  inst_d:(a,b)=>(b.inst_total??-99e9)-(a.inst_total??-99e9),
+  inst_a:(a,b)=>(a.inst_total??99e9)-(b.inst_total??99e9),
+  cap_d:(a,b)=>(b.mktcap??0)-(a.mktcap??0),
+  cap_a:(a,b)=>(a.mktcap??0)-(b.mktcap??0),
+  ca:(a,b)=>a.c.localeCompare(b.c),
+};
+
+// ── Column sort (click header) ─────────────────────────────────────
+function colSort(col){
+  const desc=col+'_d', asc=col+'_a';
+  if(sortKey===desc && SORTS[asc]) sortKey=asc;
+  else sortKey=desc;
+  document.getElementById('ss3').value=sortKey;
+  applyFilters();
+}
+
+// ── Layer toggles ──────────────────────────────────────────────────
 function toggleLayer(n){
-  const sw=document.getElementById('l'+n+'sw');
-  const txt=document.getElementById('l'+n+'txt');
   if(n===1)l1On=!l1On;
   if(n===2)l2On=!l2On;
   if(n===3)l3On=!l3On;
-  if(n===4)l4On=!l4On;
-  const on=(n===1?l1On:n===2?l2On:n===3?l3On:l4On);
-  sw.classList.toggle('on',on);
-  txt.textContent=on?'啟用':'停用';
+  const on=n===1?l1On:n===2?l2On:l3On;
+  document.getElementById('l'+n+'sw').classList.toggle('on',on);
+  document.getElementById('l'+n+'txt').textContent=on?'啟用':'停用';
   applyFilters();
 }
 function setL1Fin(m,btn){
@@ -301,6 +333,23 @@ function setL2(m,btn){
   applyFilters();
 }
 
+// ── Industry filter ────────────────────────────────────────────────
+function setInd(v,btn){
+  indF=v;
+  document.querySelectorAll('#indBtns button').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  applyFilters();
+}
+
+// ── Market filter ──────────────────────────────────────────────────
+function sm(m,btn){
+  mf=m;
+  document.querySelectorAll('#mbt .fb').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  applyFilters();
+}
+
+// ── Load data ──────────────────────────────────────────────────────
 async function loadData(){
   setSt('s','載入中');
   document.getElementById('rfi').className='spin';
@@ -317,174 +366,178 @@ async function loadData(){
     document.getElementById('s3').textContent=(st.yoy_neg||0).toLocaleString();
     document.getElementById('s5').textContent=st.gross_med!=null?fp(st.gross_med):'—';
     document.getElementById('sub').textContent=`上市 ${st.listed||''} 家 ＋ 上櫃 ${st.otc||''} 家`;
-    if(st.updated){document.getElementById('timeBadge').style.display='flex';document.getElementById('timeTxt').textContent=st.updated;}
+    if(st.updated){
+      document.getElementById('timeBadge').style.display='flex';
+      document.getElementById('timeTxt').textContent=st.updated;
+    }
     buildInds(all);
     applyFilters();
     setSt('ok',`${all.length.toLocaleString()} 家公司`);
   }catch(e){
-    console.error(e);setSt('e','載入失敗');
-    document.getElementById('ta').innerHTML=`<div class="ld"><div style="color:#f87171;font-size:14px;font-weight:600">⚠️ 無法載入資料</div><div style="margin-top:8px;color:#8b92a5;font-size:13px">請確認 GitHub Actions 已成功執行，或按「重新整理」再試</div></div>`;
+    console.error(e);
+    setSt('e','載入失敗');
+    document.getElementById('ta').innerHTML=`<div class="ld"><div style="color:#f87171;font-size:14px">⚠️ 無法載入資料</div><div style="margin-top:8px;color:#8b92a5;font-size:13px">${esc(e.message)}</div></div>`;
   }
   document.getElementById('rfi').className='';
 }
 
+// ── Build industry buttons ─────────────────────────────────────────
 function buildInds(data){
   const inds=[...new Set(data.map(d=>d.g).filter(Boolean))].sort();
   const w=document.getElementById('indBtns');
-  w.innerHTML='<button class="fb on" onclick="setInd(\'all\',this)">所有產業</button>';
-  inds.forEach(i=>{w.innerHTML+=`<button class="fb" onclick="setInd(${JSON.stringify(i)},this)">${esc(i)}</button>`;});
+  w.innerHTML='';
+  // All button
+  const allBtn=document.createElement('button');
+  allBtn.className='fb on';
+  allBtn.textContent='所有產業';
+  allBtn.onclick=()=>setInd('all',allBtn);
+  w.appendChild(allBtn);
+  // Industry buttons
+  inds.forEach(ind=>{
+    const btn=document.createElement('button');
+    btn.className='fb';
+    btn.textContent=ind;
+    btn.onclick=()=>setInd(ind,btn);
+    w.appendChild(btn);
+  });
 }
-function setInd(v,btn){indF=v;document.querySelectorAll('#indBtns .fb').forEach(b=>b.classList.remove('on'));btn.classList.add('on');applyFilters();}
-function sm(m,btn){mf=m;document.querySelectorAll('#mbt .fb').forEach(b=>b.classList.remove('on'));btn.classList.add('on');applyFilters();}
 
+// ── Layer pass functions ───────────────────────────────────────────
 function passL1(c){
-  if(!l1On)return true;
-  const months=parseInt(document.getElementById('l1months').value)||3;
+  if(!l1On) return true;
+  const months=parseInt(document.getElementById('l1months').value)||1;
   const thresh=parseFloat(document.getElementById('l1thresh').value)||5;
-  // Recalculate consecutive months from rev_hist with current UI threshold
-  let consec = 0;
-  if(c.rev_hist && c.rev_hist.length > 0){
+  // Recalculate consec from rev_hist with current threshold
+  let consec=0;
+  if(c.rev_hist&&c.rev_hist.length>0){
     for(let i=c.rev_hist.length-1;i>=0;i--){
       const y=c.rev_hist[i].y;
-      if(y!=null && y>=thresh){ consec++; } else { break; }
+      if(y!=null&&y>=thresh) consec++;
+      else break;
     }
   } else {
-    // No history yet - use current month YoY
-    consec = (c.y!=null && c.y>=thresh) ? 1 : 0;
+    consec=(c.y!=null&&c.y>=thresh)?1:0;
   }
-  if(consec < months) return false;
-  if(l1finMode==='off')return true;
-  // null = 季報 YoY 資料不足，視為「不拘」，不應排除
+  if(consec<months) return false;
+  if(l1finMode==='off') return true;
+  // null = data unavailable = don't penalize
   if(l1finMode==='both'){
-    const gpOk = c.gp_yoy==null || c.gp_yoy>0;  // null = 資料不足，放行
-    const opOk = c.op_yoy==null || c.op_yoy>0;
-    return gpOk && opOk;
+    return (c.gp_yoy==null||c.gp_yoy>0)&&(c.op_yoy==null||c.op_yoy>0);
   }
-  if(l1finMode==='any')return (c.gp_yoy!=null&&c.gp_yoy>0)||(c.op_yoy!=null&&c.op_yoy>0);
+  if(l1finMode==='any'){
+    return (c.gp_yoy!=null&&c.gp_yoy>0)||(c.op_yoy!=null&&c.op_yoy>0);
+  }
   return true;
 }
 function passL2(c){
-  if(!l2On)return true;
-  if(l2Mode==='both')return (c.inst_total||0)>0;
+  if(!l2On) return true;
+  if(l2Mode==='both')   return (c.inst_total||0)>0;
   if(l2Mode==='foreign')return (c.inst_foreign||0)>0;
-  if(l2Mode==='invest')return (c.inst_invest||0)>0;
+  if(l2Mode==='invest') return (c.inst_invest||0)>0;
   return true;
 }
 function passL3(c){
-  if(!l3On)return true;
+  if(!l3On) return true;
   const cap=parseFloat(document.getElementById('l3cap').value)||50;
-  return c.mktcap!=null && c.mktcap>=cap;
-}
-function passL4(c){
-  if(!l4On||indF==='all')return true;
-  return c.g===indF;
+  return c.mktcap!=null&&c.mktcap>=cap;
 }
 
+// ── Apply filters ──────────────────────────────────────────────────
 function applyFilters(){
   const q=document.getElementById('sq').value.trim().toLowerCase();
-  const s=document.getElementById('ss3').value;
+  sortKey=document.getElementById('ss3').value;
   let d=[...all];
-  if(mf!=='a')d=d.filter(x=>x.m===mf);
-  if(q)d=d.filter(x=>x.c.includes(q)||x.n.toLowerCase().includes(q));
-  // Apply layers
-  // Layer filters (quality)
+  if(mf!=='a') d=d.filter(x=>x.m===mf);
+  if(q) d=d.filter(x=>x.c.includes(q)||x.n.toLowerCase().includes(q));
+  if(indF!=='all') d=d.filter(x=>x.g===indF);
   d=d.filter(c=>passL1(c)&&passL2(c)&&passL3(c));
-  // Industry filter (independent pre-filter)
-  if(indF!=='all') d=d.filter(c=>c.g===indF);
-  const sm2={
-    consec_d:(a,b)=>(b.consec_yoy||0)-(a.consec_yoy||0),
-    consec_a:(a,b)=>(a.consec_yoy||0)-(b.consec_yoy||0),
-    yd:(a,b)=>(b.y??-9999)-(a.y??-9999), ya:(a,b)=>(a.y??9999)-(b.y??9999),
-    md:(a,b)=>(b.mo??-9999)-(a.mo??-9999), ma:(a,b)=>(a.mo??9999)-(b.mo??9999),
-    gd:(a,b)=>(b.gp??-9999)-(a.gp??-9999), ga:(a,b)=>(a.gp??9999)-(b.gp??9999),
-    od:(a,b)=>(b.op??-9999)-(a.op??-9999), oa:(a,b)=>(a.op??9999)-(b.op??9999),
-    nd:(a,b)=>(b.np??-9999)-(a.np??-9999), na:(a,b)=>(a.np??9999)-(b.np??9999),
-    rd:(a,b)=>(b.r??0)-(a.r??0),           ra:(a,b)=>(a.r??0)-(b.r??0),
-    inst_d:(a,b)=>(b.inst_total??-99e9)-(a.inst_total??-99e9),
-    inst_a:(a,b)=>(a.inst_total??99e9)-(b.inst_total??99e9),
-    cap_d:(a,b)=>(b.mktcap??0)-(a.mktcap??0),
-    cap_a:(a,b)=>(a.mktcap??0)-(b.mktcap??0),
-    ca:(a,b)=>a.c.localeCompare(b.c)
-  };
-  d.sort(sm2[s]||sm2.consec_d);
-  fil=d;cur=1;
-
-  // Update s4 (all 4 layers)
-  const all4=all.filter(c=>passL1(c)&&passL2(c)&&passL3(c)&&(indF==="all"||c.g===indF));
-  document.getElementById('s4').textContent=all4.length.toLocaleString();
-
+  d.sort(SORTS[sortKey]||SORTS.consec_d);
+  fil=d; cur=1;
+  // Update "三層全通過" count (within selected industry)
+  const all3=all.filter(c=>(indF==='all'||c.g===indF)&&passL1(c)&&passL2(c)&&passL3(c));
+  document.getElementById('s4').textContent=all3.length.toLocaleString();
+  document.getElementById('s4ind').textContent=indF==='all'?'當前篩選':indF;
   // Result bar
   const layersOn=[l1On,l2On,l3On].filter(Boolean).length;
+  const indLabel=indF==='all'?'所有產業':indF;
   const rb=document.getElementById('resultBar');
-  if(layersOn>0){
-    const indLabel = indF==='all' ? '所有產業' : indF;
-    rb.innerHTML=`<span class="result-count">篩選結果：<strong style="color:#e8eaf0">${d.length}</strong> 家（產業：${indLabel}，${layersOn > 0 ? '已啟用 '+layersOn+' 層品質篩選，' : ''}全市場 ${all.length} 家）</span>`;
-  } else {
-    rb.innerHTML=`<span class="result-count">顯示全部 <strong>${d.length}</strong> 家公司</span>`;
-  }
+  rb.innerHTML=`<span class="result-count">篩選結果：<strong style="color:#e8eaf0">${d.length}</strong> 家
+    （產業：${esc(indLabel)}，${layersOn?'已啟用 '+layersOn+' 層品質篩選，':''}全市場 ${all.length} 家）</span>`;
   render();
 }
 
+// ── Render table ───────────────────────────────────────────────────
 function render(){
   const tot=fil.length,pages=Math.ceil(tot/PAGE),st=(cur-1)*PAGE,sl=fil.slice(st,st+PAGE);
   document.getElementById('cnt').textContent=`共 ${tot.toLocaleString()} 家`;
   if(!tot){
-    document.getElementById('ta').innerHTML=(() => {
-      const tips = [];
-      if(l1On) tips.push(`L1：試著把連續月數降為 1，或將 YoY 門檻降低`);
-      if(l2On) tips.push(`L2：試著停用法人買超篩選（今日可能尚未更新）`);
-      if(l3On) tips.push(`L3：試著降低市值門檻`);
-      return `<div class="ld" style="padding:2rem;color:#565e72">沒有符合所有篩選條件的公司<br><span style="font-size:11px;margin-top:8px;display:block;color:#3d4558;line-height:1.8">${tips.join('<br>')}</span></div>`;
-    })();
-    document.getElementById('pg').style.display='none';return;
+    const tips=[];
+    if(l1On) tips.push('L1：降低連續月數或 YoY 門檻');
+    if(l2On) tips.push('L2：停用法人買超篩選（當日資料可能未更新）');
+    if(l3On) tips.push('L3：降低市值門檻');
+    if(indF!=='all') tips.push('產業：試試選「所有產業」');
+    document.getElementById('ta').innerHTML=`<div class="ld" style="padding:2rem;color:#565e72">
+      沒有符合條件的公司<br>
+      <span style="font-size:11px;margin-top:8px;display:block;line-height:1.9">${tips.join('<br>')}</span>
+    </div>`;
+    document.getElementById('pg').style.display='none';
+    return;
   }
+
+  // Table header with sort indicators
+  function th(col,label,w){
+    const isDesc=sortKey===col+'_d';
+    const isAsc =sortKey===col+'_a';
+    const active=isDesc||isAsc;
+    const arrow =isDesc?'↓':isAsc?'↑':'↕';
+    const color =active?'color:#4f9cf9;':'';
+    return `<th class="nr" style="width:${w};cursor:pointer;${color}" onclick="colSort('${col}')" title="點擊排序">${label}<span style="margin-left:3px;opacity:${active?1:.3}">${arrow}</span></th>`;
+  }
+  function thL(col,label,w){ // left-align
+    const isDesc=sortKey===col+'_d';
+    const isAsc =sortKey===col+'_a';
+    const active=isDesc||isAsc;
+    const arrow =isDesc?'↓':isAsc?'↑':'↕';
+    const color =active?'color:#4f9cf9;':'';
+    return `<th style="width:${w};cursor:pointer;${color}" onclick="colSort('${col}')" title="點擊排序">${label}<span style="margin-left:3px;opacity:${active?1:.3}">${arrow}</span></th>`;
+  }
+
+  let h=`<div class="tscr"><table><thead><tr>
+    <th style="width:28px">#</th>
+    <th style="width:52px;cursor:pointer" onclick="colSort('ca')">代號</th>
+    <th style="width:100px">公司</th>
+    <th style="width:48px">市場</th>
+    <th style="width:80px">產業</th>
+    ${thL('consec','連續月','60px')}
+    ${th('rd','月營收(千)','88px')}
+    ${th('yd','YoY%','70px')}
+    ${th('md','MoM%','70px')}
+    ${th('gd','毛利率%','68px')}
+    ${th('od','營業利益率%','80px')}
+    ${th('nd','淨利率%','68px')}
+    ${th('inst','法人買超(股)','90px')}
+    ${th('cap','市值(億)','72px')}
+    <th style="width:56px">篩選層</th>
+  </tr></thead><tbody>`;
+
   const fmt=v=>v!=null?`<span class="${v>0?'pos':v<0?'neg':''}">${v>0?'+':''}${v.toFixed(1)}%</span>`:'<span class="na">—</span>';
   const fmtInst=v=>{
-    if(v==null)return'<span class="na">—</span>';
-    const cls=v>0?'inst-pos':v<0?'inst-neg':'inst-neu';
-    const s=v>=0?'+':'';
-    if(Math.abs(v)>=1e6)return`<span class="${cls}">${s}${(v/1e6).toFixed(1)}M</span>`;
-    if(Math.abs(v)>=1e3)return`<span class="${cls}">${s}${(v/1e3).toFixed(0)}K</span>`;
+    if(v==null) return'<span class="na">—</span>';
+    const cls=v>0?'pos':v<0?'neg':'';
+    const s=v>0?'+':'';
+    if(Math.abs(v)>=1e6) return`<span class="${cls}">${s}${(v/1e6).toFixed(1)}M</span>`;
+    if(Math.abs(v)>=1e3) return`<span class="${cls}">${s}${Math.round(v/1e3)}K</span>`;
     return`<span class="${cls}">${s}${v}</span>`;
   };
 
-  const curSort=document.getElementById('ss3').value;
-  function th(col,label,w,nr=true){
-    // Match both 'col_d'/'col_a' and 'col'/'cola' patterns
-    const isDesc=curSort===col+'_d'||curSort===col||curSort===col+'d';
-    const isAsc =curSort===col+'_a'||curSort===col+'a';
-    const active=isDesc||isAsc;
-    const arrow=isDesc?'↓':isAsc?'↑':'↕';
-    const style=`width:${w};cursor:pointer;${active?'color:#4f9cf9;':''}`;
-    return `<th class="${nr?'nr':''}" style="${style}" onclick="colSort('${col}')" title="點擊排序">${label} <span style="opacity:${active?1:.35}">${arrow}</span></th>`;
-  }
-  let h='<div class="tscr"><table><thead><tr>'
-    +'<th style="width:28px">#</th>'
-    +'<th style="width:52px" onclick="colSort(\'ca\')" style="cursor:pointer">代號</th>'
-    +'<th style="width:100px">公司</th>'
-    +'<th style="width:48px">市場</th>'
-    +'<th style="width:80px">產業</th>'
-    +th('consec','連續月',  '60px')
-    +th('rd',   '月營收(千)','88px')
-    +th('yd',   'YoY%',     '72px')
-    +th('md',   'MoM%',     '72px')
-    +th('gd',   '毛利率%',  '68px')
-    +th('od',   '營業利益率%','68px')
-    +th('nd',   '淨利率%',  '68px')
-    +th('inst', '法人買超(股)','90px')
-    +th('cap',  '市值(億)', '72px')
-    +'<th style="width:60px">篩選層</th>'
-    +'</tr></thead><tbody>';
-
   sl.forEach((c,i)=>{
-    const p1=passL1(c),p2=passL2(c),p3=passL3(c),p4=passL4(c);
+    const p1=passL1(c),p2=passL2(c),p3=passL3(c);
     const streak=c.consec_yoy>0?`<span class="streak">${c.consec_yoy}月</span>`:'<span class="na">—</span>';
-    const cap=c.mktcap!=null?`${c.mktcap.toFixed(0)}`:'<span class="na">—</span>';
+    const cap=c.mktcap!=null?c.mktcap.toFixed(0):'<span class="na">—</span>';
     const lchk=`<span class="lchk">
-      <span class="lc ${p1?'lc-pass':'lc-fail'}" title="L1:基本面">1</span>
-      <span class="lc ${p2?'lc-pass':'lc-fail'}" title="L2:籌碼">2</span>
-      <span class="lc ${p3?'lc-pass':'lc-fail'}" title="L3:市值">3</span>
-      <span class="lc ${p4?'lc-pass':'lc-fail'}" title="L4:產業">4</span>
+      <span class="lc ${p1?'lc-pass':'lc-fail'}" title="L1">1</span>
+      <span class="lc ${p2?'lc-pass':'lc-fail'}" title="L2">2</span>
+      <span class="lc ${p3?'lc-pass':'lc-fail'}" title="L3">3</span>
     </span>`;
     h+=`<tr>
       <td style="color:#565e72;font-size:12px">${st+i+1}</td>
@@ -507,32 +560,41 @@ function render(){
   h+='</tbody></table></div>';
   document.getElementById('ta').innerHTML=h;
 
-  const pg=document.getElementById('pg');pg.style.display='flex';
+  // Pagination
+  const pg=document.getElementById('pg');
+  pg.style.display='flex';
   let ph=`<span class="pi">第 ${st+1}–${Math.min(st+PAGE,tot)} 筆，共 ${tot} 筆</span><div class="pbs">`;
   ph+=`<button class="pb" ${cur===1?'disabled':''} onclick="gp(${cur-1})">‹</button>`;
-  prng(cur,pages).forEach(p=>{ph+=p==='…'?'<span class="pb" style="cursor:default">…</span>':`<button class="pb${p===cur?' cur':''}" onclick="gp(${p})">${p}</button>`;});
+  prng(cur,pages).forEach(p=>{
+    ph+=p==='…'?'<span class="pb" style="cursor:default">…</span>'
+      :`<button class="pb${p===cur?' cur':''}" onclick="gp(${p})">${p}</button>`;
+  });
   ph+=`<button class="pb" ${cur===pages?'disabled':''} onclick="gp(${cur+1})">›</button></div>`;
   pg.innerHTML=ph;
 }
 
-function prng(c,t){if(t<=7)return Array.from({length:t},(_,i)=>i+1);if(c<=4)return[1,2,3,4,5,'…',t];if(c>=t-3)return[1,'…',t-4,t-3,t-2,t-1,t];return[1,'…',c-1,c,c+1,'…',t];}
-function gp(n){cur=n;render();window.scrollTo({top:0,behavior:'smooth'});}
-function colSort(col){
-  const s=document.getElementById('ss3');
-  const opts=[...s.options].map(o=>o.value);
-  // Handle both 'col_d'/'col_a' pattern and plain 'col' pattern
-  const desc=opts.includes(col+'_d')?col+'_d':opts.includes(col+'d')?col+'d':col;
-  const asc =opts.includes(col+'_a')?col+'_a':opts.includes(col+'a')?col+'a':null;
-  if(s.value===desc && asc) s.value=asc;
-  else s.value=desc;
-  applyFilters();
+function prng(c,t){
+  if(t<=7) return Array.from({length:t},(_,i)=>i+1);
+  if(c<=4) return[1,2,3,4,5,'…',t];
+  if(c>=t-3) return[1,'…',t-4,t-3,t-2,t-1,t];
+  return[1,'…',c-1,c,c+1,'…',t];
 }
+function gp(n){cur=n;render();window.scrollTo({top:0,behavior:'smooth'});}
 function fp(v){if(v==null||isNaN(v))return'—';return(v>0?'+':'')+Number(v).toFixed(1)+'%';}
-function fr(v){if(!v||isNaN(v))return'<span class="na">—</span>';if(v>=1e9)return(v/1e9).toFixed(2)+' B';if(v>=1e6)return(v/1e6).toFixed(2)+' M';return Math.round(v).toLocaleString();}
+function fr(v){
+  if(!v||isNaN(v)) return'<span class="na">—</span>';
+  if(v>=1e9) return(v/1e9).toFixed(2)+' B';
+  if(v>=1e6) return(v/1e6).toFixed(2)+' M';
+  return Math.round(v).toLocaleString();
+}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function setSt(t,m){document.getElementById('dot').className='dot'+(t==='s'?' s':t==='e'?' e':'');document.getElementById('stxt').textContent=m;}
+function setSt(t,m){
+  document.getElementById('dot').className='dot'+(t==='s'?' s':t==='e'?' e':'');
+  document.getElementById('stxt').textContent=m;
+}
 
 loadData();
+
 </script>
 </body>
 </html>
