@@ -330,9 +330,25 @@ function passL1(c){
   if(!l1On)return true;
   const months=parseInt(document.getElementById('l1months').value)||3;
   const thresh=parseFloat(document.getElementById('l1thresh').value)||5;
-  if((c.consec_yoy||0)<months)return false;
+  // Recalculate consecutive months from rev_hist with current UI threshold
+  let consec = 0;
+  if(c.rev_hist && c.rev_hist.length > 0){
+    for(let i=c.rev_hist.length-1;i>=0;i--){
+      const y=c.rev_hist[i].y;
+      if(y!=null && y>=thresh){ consec++; } else { break; }
+    }
+  } else {
+    // No history yet - use current month YoY
+    consec = (c.y!=null && c.y>=thresh) ? 1 : 0;
+  }
+  if(consec < months) return false;
   if(l1finMode==='off')return true;
-  if(l1finMode==='both')return c.gp_yoy>0 && c.op_yoy>0;
+  // null = 季報 YoY 資料不足，視為「不拘」，不應排除
+  if(l1finMode==='both'){
+    const gpOk = c.gp_yoy==null || c.gp_yoy>0;  // null = 資料不足，放行
+    const opOk = c.op_yoy==null || c.op_yoy>0;
+    return gpOk && opOk;
+  }
   if(l1finMode==='any')return (c.gp_yoy!=null&&c.gp_yoy>0)||(c.op_yoy!=null&&c.op_yoy>0);
   return true;
 }
@@ -387,7 +403,8 @@ function applyFilters(){
   const layersOn=[l1On,l2On,l3On].filter(Boolean).length;
   const rb=document.getElementById('resultBar');
   if(layersOn>0){
-    rb.innerHTML=`<span class="result-count">篩選結果：<strong>${d.length}</strong> 家公司（已啟用 ${layersOn} 層篩選，全市場 ${all.length} 家）</span>`;
+    const indLabel = indF==='all' ? '所有產業' : indF;
+    rb.innerHTML=`<span class="result-count">篩選結果：<strong style="color:#e8eaf0">${d.length}</strong> 家（產業：${indLabel}，${layersOn > 0 ? '已啟用 '+layersOn+' 層品質篩選，' : ''}全市場 ${all.length} 家）</span>`;
   } else {
     rb.innerHTML=`<span class="result-count">顯示全部 <strong>${d.length}</strong> 家公司</span>`;
   }
@@ -398,7 +415,13 @@ function render(){
   const tot=fil.length,pages=Math.ceil(tot/PAGE),st=(cur-1)*PAGE,sl=fil.slice(st,st+PAGE);
   document.getElementById('cnt').textContent=`共 ${tot.toLocaleString()} 家`;
   if(!tot){
-    document.getElementById('ta').innerHTML='<div class="ld" style="padding:2rem;color:#565e72">沒有符合所有篩選條件的公司<br><span style="font-size:12px;margin-top:6px;display:block">可以嘗試調整各層的門檻值，或暫時停用某些篩選層</span></div>';
+    document.getElementById('ta').innerHTML=(() => {
+      const tips = [];
+      if(l1On) tips.push(`L1：試著把連續月數降為 1，或將 YoY 門檻降低`);
+      if(l2On) tips.push(`L2：試著停用法人買超篩選（今日可能尚未更新）`);
+      if(l3On) tips.push(`L3：試著降低市值門檻`);
+      return `<div class="ld" style="padding:2rem;color:#565e72">沒有符合所有篩選條件的公司<br><span style="font-size:11px;margin-top:8px;display:block;color:#3d4558;line-height:1.8">${tips.join('<br>')}</span></div>`;
+    })();
     document.getElementById('pg').style.display='none';return;
   }
   const fmt=v=>v!=null?`<span class="${v>0?'pos':v<0?'neg':''}">${v>0?'+':''}${v.toFixed(1)}%</span>`:'<span class="na">—</span>';
