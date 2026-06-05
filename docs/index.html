@@ -102,6 +102,9 @@ td{padding:8px 10px;font-size:13px;white-space:nowrap}
 .pb:hover:not(:disabled){border-color:#4f9cf9;color:#4f9cf9}.pb:disabled{opacity:.3;cursor:default}
 .pb.cur{background:rgba(79,156,249,.14);border-color:#4f9cf9;color:#4f9cf9}
 
+.ind-row{background:#161b27;border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.ind-label{font-size:12px;color:#565e72;padding-top:6px;flex-shrink:0;white-space:nowrap}
+.ind-row .fg{display:flex;gap:4px;flex-wrap:wrap;flex:1}
 .ld{padding:60px;text-align:center;color:#8b92a5}
 .lr{width:28px;height:28px;border:2.5px solid rgba(255,255,255,.1);border-top-color:#4f9cf9;border-radius:50%;animation:rot .75s linear infinite;margin:0 auto 14px}
 
@@ -218,6 +221,14 @@ td{padding:8px 10px;font-size:13px;white-space:nowrap}
       </div>
 
 
+  <!-- Industry Filter Row -->
+  <div class="ind-row">
+    <span class="ind-label">產業別：</span>
+    <div class="fg" id="indBtns">
+      <button class="fb on" onclick="setInd('all',this)">所有產業</button>
+    </div>
+  </div>
+
   <!-- Toolbar -->
   <div class="toolbar">
     <div class="si"><span class="si-ic">🔍</span><input type="search" id="sq" placeholder="代號或名稱..." oninput="applyFilters()"></div>
@@ -226,20 +237,25 @@ td{padding:8px 10px;font-size:13px;white-space:nowrap}
       <button class="fb" onclick="sm('L',this)">上市</button>
       <button class="fb" onclick="sm('O',this)">上櫃</button>
     </div>
-    <div class="fg" id="indBtns">
-      <button class="fb on" onclick="setInd('all',this)">所有產業</button>
-    </div>
     <select class="ss2" id="ss3" onchange="applyFilters()">
       <option value="consec_d">連續月數 由高到低</option>
+      <option value="consec_a">連續月數 由低到高</option>
       <option value="yd">YoY 由高到低</option>
       <option value="ya">YoY 由低到高</option>
       <option value="md">MoM 由高到低</option>
+      <option value="ma">MoM 由低到高</option>
       <option value="gd">毛利率 由高到低</option>
+      <option value="ga">毛利率 由低到高</option>
       <option value="od">營業利益率 由高到低</option>
+      <option value="oa">營業利益率 由低到高</option>
       <option value="nd">淨利率 由高到低</option>
+      <option value="na">淨利率 由低到高</option>
       <option value="rd">月營收 由高到低</option>
+      <option value="ra">月營收 由低到高</option>
       <option value="inst_d">法人買超 由高到低</option>
+      <option value="inst_a">法人買超 由低到高</option>
       <option value="cap_d">市值 由高到低</option>
+      <option value="cap_a">市值 由低到高</option>
       <option value="ca">股票代號</option>
     </select>
     <button class="rfb" onclick="loadData()"><span id="rfi">↻</span> 重新整理</button>
@@ -377,14 +393,17 @@ function applyFilters(){
   if(indF!=='all') d=d.filter(c=>c.g===indF);
   const sm2={
     consec_d:(a,b)=>(b.consec_yoy||0)-(a.consec_yoy||0),
-    yd:(a,b)=>(b.y??-9999)-(a.y??-9999),ya:(a,b)=>(a.y??9999)-(b.y??9999),
-    md:(a,b)=>(b.mo??-9999)-(a.mo??-9999),
-    gd:(a,b)=>(b.gp??-9999)-(a.gp??-9999),
-    od:(a,b)=>(b.op??-9999)-(a.op??-9999),
-    nd:(a,b)=>(b.np??-9999)-(a.np??-9999),
-    rd:(a,b)=>(b.r??0)-(a.r??0),
+    consec_a:(a,b)=>(a.consec_yoy||0)-(b.consec_yoy||0),
+    yd:(a,b)=>(b.y??-9999)-(a.y??-9999), ya:(a,b)=>(a.y??9999)-(b.y??9999),
+    md:(a,b)=>(b.mo??-9999)-(a.mo??-9999), ma:(a,b)=>(a.mo??9999)-(b.mo??9999),
+    gd:(a,b)=>(b.gp??-9999)-(a.gp??-9999), ga:(a,b)=>(a.gp??9999)-(b.gp??9999),
+    od:(a,b)=>(b.op??-9999)-(a.op??-9999), oa:(a,b)=>(a.op??9999)-(b.op??9999),
+    nd:(a,b)=>(b.np??-9999)-(a.np??-9999), na:(a,b)=>(a.np??9999)-(b.np??9999),
+    rd:(a,b)=>(b.r??0)-(a.r??0),           ra:(a,b)=>(a.r??0)-(b.r??0),
     inst_d:(a,b)=>(b.inst_total??-99e9)-(a.inst_total??-99e9),
+    inst_a:(a,b)=>(a.inst_total??99e9)-(b.inst_total??99e9),
     cap_d:(a,b)=>(b.mktcap??0)-(a.mktcap??0),
+    cap_a:(a,b)=>(a.mktcap??0)-(b.mktcap??0),
     ca:(a,b)=>a.c.localeCompare(b.c)
   };
   d.sort(sm2[s]||sm2.consec_d);
@@ -431,8 +450,11 @@ function render(){
 
   const curSort=document.getElementById('ss3').value;
   function th(col,label,w,nr=true){
-    const active=curSort===col+'_d'||curSort===col+'_a';
-    const arrow=curSort===col+'_d'?'↓':curSort===col+'_a'?'↑':'↕';
+    // Match both 'col_d'/'col_a' and 'col'/'cola' patterns
+    const isDesc=curSort===col+'_d'||curSort===col||curSort===col+'d';
+    const isAsc =curSort===col+'_a'||curSort===col+'a';
+    const active=isDesc||isAsc;
+    const arrow=isDesc?'↓':isAsc?'↑':'↕';
     const style=`width:${w};cursor:pointer;${active?'color:#4f9cf9;':''}`;
     return `<th class="${nr?'nr':''}" style="${style}" onclick="colSort('${col}')" title="點擊排序">${label} <span style="opacity:${active?1:.35}">${arrow}</span></th>`;
   }
@@ -498,9 +520,11 @@ function gp(n){cur=n;render();window.scrollTo({top:0,behavior:'smooth'});}
 function colSort(col){
   const s=document.getElementById('ss3');
   const opts=[...s.options].map(o=>o.value);
-  const desc=col+'_d', asc=col+'_a';
-  if(s.value===desc && opts.includes(asc)) s.value=asc;
-  else if(opts.includes(desc)) s.value=desc;
+  // Handle both 'col_d'/'col_a' pattern and plain 'col' pattern
+  const desc=opts.includes(col+'_d')?col+'_d':opts.includes(col+'d')?col+'d':col;
+  const asc =opts.includes(col+'_a')?col+'_a':opts.includes(col+'a')?col+'a':null;
+  if(s.value===desc && asc) s.value=asc;
+  else s.value=desc;
   applyFilters();
 }
 function fp(v){if(v==null||isNaN(v))return'—';return(v>0?'+':'')+Number(v).toFixed(1)+'%';}
