@@ -71,6 +71,69 @@ def calc_margin(num_key, rev_key, row):
     if num is None or rev is None or rev == 0: return None
     return round(num / rev * 100, 1)
 
+def calc_moat_score(fin_history):
+    """
+    護城河評分（L5）：依 fin_history 清單（多季損益資料）計算 0~100 分
+    五項指標各有加權：
+      M1 毛利率穩定性 25分：近4季平均毛利率≥40% 且標準差≤5%
+      M2 毛利率水準   20分：近4季平均毛利率（分段給分）
+      M3 ROE 代理     20分：用淨利率×資產週轉率代理（淨利率≥10% 連續3季）
+      M4 獲利一致性   20分：近4季淨利率全為正
+      M5 R&D 代理     15分：研發費用率≥8%（若無資料給部分分數）
+    """
+    if not fin_history or len(fin_history) < 2:
+        return None
+
+    # 取最近 4 季（已排序 newest first）
+    recent = fin_history[:4]
+    gp_vals = [r["gp"] for r in recent if r.get("gp") is not None]
+    np_vals = [r["np"] for r in recent if r.get("np") is not None]
+
+    score = 0
+
+    # M1：毛利率穩定性（25分）
+    if len(gp_vals) >= 2:
+        avg_gp = sum(gp_vals) / len(gp_vals)
+        import math
+        std_gp = math.sqrt(sum((x - avg_gp)**2 for x in gp_vals) / len(gp_vals))
+        if avg_gp >= 40 and std_gp <= 5:
+            score += 25
+        elif avg_gp >= 40 and std_gp <= 10:
+            score += 15
+        elif avg_gp >= 30 and std_gp <= 5:
+            score += 10
+
+    # M2：毛利率水準（20分）
+    if gp_vals:
+        avg_gp = sum(gp_vals) / len(gp_vals)
+        if avg_gp >= 50:   score += 20
+        elif avg_gp >= 40: score += 15
+        elif avg_gp >= 30: score += 10
+        elif avg_gp >= 20: score += 5
+
+    # M3：淨利率持續性代理 ROE（20分）
+    if len(np_vals) >= 3:
+        positive_quarters = sum(1 for v in np_vals if v > 10)
+        if positive_quarters >= 4:   score += 20
+        elif positive_quarters >= 3: score += 14
+        elif positive_quarters >= 2: score += 7
+
+    # M4：獲利一致性（20分）—— 近4季淨利率均為正
+    if np_vals:
+        neg_quarters = sum(1 for v in np_vals if v <= 0)
+        if neg_quarters == 0:   score += 20
+        elif neg_quarters == 1: score += 10
+
+    # M5：R&D 代理（15分）—— 現有資料無直接 R&D 欄位
+    # 用毛利率高+淨利率穩定 作為技術護城河代理
+    if gp_vals and np_vals:
+        avg_gp = sum(gp_vals) / len(gp_vals)
+        avg_np = sum(np_vals) / len(np_vals)
+        if avg_gp >= 45 and avg_np >= 10:  score += 15
+        elif avg_gp >= 35 and avg_np >= 5: score += 8
+
+    return min(score, 100)
+
 def parse_t86_row(row, fields):
     """動態解析 T86 欄位，適應不同欄位名稱版本"""
     if isinstance(row, list) and fields:
@@ -203,11 +266,13 @@ def main():
         recs.sort(key=lambda x: x["period"], reverse=True)
         lat = recs[0]
         yoy_rec = recs[4] if len(recs) > 4 else None
+        moat = calc_moat_score(recs)
         fin_latest[code] = {
             "gp": lat.get("gp"), "op": lat.get("op"), "np": lat.get("np"),
             "gp_yoy": safe_pct(lat.get("gp"), yoy_rec.get("gp")) if yoy_rec else None,
             "op_yoy": safe_pct(lat.get("op"), yoy_rec.get("op")) if yoy_rec else None,
-            "period": lat.get("period","")
+            "period": lat.get("period",""),
+            "moat": moat
         }
 
     # T86 法人 map
@@ -265,6 +330,7 @@ def main():
             "mktcap": mktcap,
             "rev_hist": rev_hist,
             "consec_yoy": consec,
+            "moat": fin.get("moat"),
         }
 
     companies = []
@@ -320,7 +386,7 @@ def main():
         "net_med":   median([c["np"] for c in companies if c["np"] is not None]),
         "rev_month": rev_month,
         "updated": datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
-        "layer_counts": {"l1": l1, "l2": l2, "l3": l3}
+        "layer_counts": {"l1": l1, "l2": l2, "l3": l3, "l5": sum(1 for c in companies if c.get("moat") is not None and c["moat"] >= 60)}
     }
 
     os.makedirs(OUT_DIR, exist_ok=True)
