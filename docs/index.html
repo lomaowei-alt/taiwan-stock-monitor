@@ -92,6 +92,11 @@ td{padding:8px 10px;font-size:13px;white-space:nowrap}
 /* Streak badge */
 .streak{display:inline-block;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:600;background:rgba(251,191,36,.15);color:#fbbf24}
 
+/* Moat badge */
+.moat-gold{display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;background:rgba(251,191,36,.2);color:#fbbf24}
+.moat-green{display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;background:rgba(52,211,153,.15);color:#34d399}
+.moat-gray{display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600;background:rgba(255,255,255,.06);color:#565e72}
+
 /* Inst badge */
 .inst-pos{color:#f87171}.inst-neg{color:#34d399}.inst-neu{color:#565e72}
 
@@ -128,7 +133,7 @@ td{padding:8px 10px;font-size:13px;white-space:nowrap}
 
 <div class="wrap">
   <div class="notice">
-    <strong>📋 資料說明：</strong>月營收每月 5~10 日更新（TWSE）；損益表來自最新季報；三大法人買賣超為當日資料，每天早上 10:00 自動更新。連續月數會隨每月資料累積越來越準確。
+    <strong>📋 資料說明：</strong>月營收每月 5~10 日更新（TWSE）；損益表來自最新季報；三大法人買賣超為當日資料，每天早上 10:00 自動更新。連續月數會隨每月資料累積越來越準確。<strong>🏰 護城河分數</strong>依近 4 季損益計算，資料累積後（建議 4 季以上）才啟用第五層篩選效果最佳。
   </div>
 
   <div class="stats">
@@ -217,6 +222,26 @@ td{padding:8px 10px;font-size:13px;white-space:nowrap}
       </div>
     </div>
 
+    <!-- Layer 5：護城河評分 -->
+    <div class="layer">
+      <div class="layer-hdr">
+        <span class="layer-badge" style="background:rgba(251,191,36,.15);color:#fbbf24">第五層</span>
+        <span class="layer-title">護城河評分：毛利率穩定性 × 獲利持續性（財報季更新）</span>
+        <div class="layer-toggle" onclick="toggleLayer(5)">
+          <span id="l5txt">停用</span>
+          <div class="toggle-sw" id="l5sw"></div>
+        </div>
+      </div>
+      <div class="layer-desc">依近 4 季損益資料計算 0–100 分；金色 ≥80（深護城河），綠色 60–79（有護城河），灰色 &lt;60（護城河不明顯）</div>
+      <div class="layer-body">
+        <div class="ctrl-row">
+          <span class="lbl">護城河分數 ≥</span>
+          <input class="numInput" type="number" id="l5thresh" value="60" min="0" max="100" onchange="applyFilters()" style="width:65px">
+          <span class="lbl">分</span>
+          <span class="lbl" style="margin-left:16px;font-size:11px;color:#565e72">（初期資料不足時建議先停用此層）</span>
+        </div>
+      </div>
+    </div>
 
       </div>
 
@@ -256,6 +281,8 @@ td{padding:8px 10px;font-size:13px;white-space:nowrap}
       <option value="inst_a">法人買超 ↑</option>
       <option value="cap_d">市值 ↓</option>
       <option value="cap_a">市值 ↑</option>
+      <option value="moat_d">護城河分數 ↓</option>
+      <option value="moat_a">護城河分數 ↑</option>
       <option value="ca">股票代號</option>
     </select>
     <button class="rfb" onclick="loadData()"><span id="rfi">↻</span> 重新整理</button>
@@ -274,7 +301,7 @@ td{padding:8px 10px;font-size:13px;white-space:nowrap}
 
 const PAGE=50;
 let all=[],fil=[],cur=1,mf='a',indF='all';
-let l1On=true,l2On=true,l3On=true;
+let l1On=true,l2On=true,l3On=true,l5On=false;
 let l1finMode='both',l2Mode='both';
 let sortKey='consec_d';
 
@@ -299,6 +326,8 @@ const SORTS={
   cap_d:(a,b)=>(b.mktcap??0)-(a.mktcap??0),
   cap_a:(a,b)=>(a.mktcap??0)-(b.mktcap??0),
   ca:(a,b)=>a.c.localeCompare(b.c),
+  moat_d:(a,b)=>(b.moat??-1)-(a.moat??-1),
+  moat_a:(a,b)=>(a.moat??999)-(b.moat??999),
 };
 
 // ── Column sort (click header) ─────────────────────────────────────
@@ -315,7 +344,8 @@ function toggleLayer(n){
   if(n===1)l1On=!l1On;
   if(n===2)l2On=!l2On;
   if(n===3)l3On=!l3On;
-  const on=n===1?l1On:n===2?l2On:l3On;
+  if(n===5)l5On=!l5On;
+  const on=n===1?l1On:n===2?l2On:n===3?l3On:l5On;
   document.getElementById('l'+n+'sw').classList.toggle('on',on);
   document.getElementById('l'+n+'txt').textContent=on?'啟用':'停用';
   applyFilters();
@@ -442,6 +472,12 @@ function passL3(c){
   return c.mktcap!=null&&c.mktcap>=cap;
 }
 
+function passL5(c){
+  if(!l5On) return true;
+  const thresh=parseInt(document.getElementById('l5thresh').value)||60;
+  return c.moat!=null&&c.moat>=thresh;
+}
+
 // ── Apply filters ──────────────────────────────────────────────────
 function applyFilters(){
   const q=document.getElementById('sq').value.trim().toLowerCase();
@@ -450,15 +486,15 @@ function applyFilters(){
   if(mf!=='a') d=d.filter(x=>x.m===mf);
   if(q) d=d.filter(x=>x.c.includes(q)||x.n.toLowerCase().includes(q));
   if(indF!=='all') d=d.filter(x=>x.g===indF);
-  d=d.filter(c=>passL1(c)&&passL2(c)&&passL3(c));
+  d=d.filter(c=>passL1(c)&&passL2(c)&&passL3(c)&&passL5(c));
   d.sort(SORTS[sortKey]||SORTS.consec_d);
   fil=d; cur=1;
   // Update "三層全通過" count (within selected industry)
-  const all3=all.filter(c=>(indF==='all'||c.g===indF)&&passL1(c)&&passL2(c)&&passL3(c));
+  const all3=all.filter(c=>(indF==='all'||c.g===indF)&&passL1(c)&&passL2(c)&&passL3(c)&&passL5(c));
   document.getElementById('s4').textContent=all3.length.toLocaleString();
   document.getElementById('s4ind').textContent=indF==='all'?'當前篩選':indF;
   // Result bar
-  const layersOn=[l1On,l2On,l3On].filter(Boolean).length;
+  const layersOn=[l1On,l2On,l3On,l5On].filter(Boolean).length;
   const indLabel=indF==='all'?'所有產業':indF;
   const rb=document.getElementById('resultBar');
   rb.innerHTML=`<span class="result-count">篩選結果：<strong style="color:#e8eaf0">${d.length}</strong> 家
@@ -475,6 +511,7 @@ function render(){
     if(l1On) tips.push('L1：降低連續月數或 YoY 門檻');
     if(l2On) tips.push('L2：停用法人買超篩選（當日資料可能未更新）');
     if(l3On) tips.push('L3：降低市值門檻');
+    if(l5On) tips.push('L5：降低護城河分數門檻，或暫停此層（財報季累積後才較準確）');
     if(indF!=='all') tips.push('產業：試試選「所有產業」');
     document.getElementById('ta').innerHTML=`<div class="ld" style="padding:2rem;color:#565e72">
       沒有符合條件的公司<br>
@@ -517,7 +554,8 @@ function render(){
     ${th('nd','淨利率%','68px')}
     ${th('inst','法人買超(股)','90px')}
     ${th('cap','市值(億)','72px')}
-    <th style="width:56px">篩選層</th>
+    ${th('moat','🏰護城河','68px')}
+    <th style="width:66px">篩選層</th>
   </tr></thead><tbody>`;
 
   const fmt=v=>v!=null?`<span class="${v>0?'pos':v<0?'neg':''}">${v>0?'+':''}${v.toFixed(1)}%</span>`:'<span class="na">—</span>';
@@ -531,13 +569,18 @@ function render(){
   };
 
   sl.forEach((c,i)=>{
-    const p1=passL1(c),p2=passL2(c),p3=passL3(c);
+    const p1=passL1(c),p2=passL2(c),p3=passL3(c),p5=passL5(c);
     const streak=c.consec_yoy>0?`<span class="streak">${c.consec_yoy}月</span>`:'<span class="na">—</span>';
     const cap=c.mktcap!=null?c.mktcap.toFixed(0):'<span class="na">—</span>';
+    const moatBadge=c.moat==null?'<span class="na">—</span>':
+      c.moat>=80?`<span class="moat-gold">${c.moat}</span>`:
+      c.moat>=60?`<span class="moat-green">${c.moat}</span>`:
+      `<span class="moat-gray">${c.moat}</span>`;
     const lchk=`<span class="lchk">
       <span class="lc ${p1?'lc-pass':'lc-fail'}" title="L1">1</span>
       <span class="lc ${p2?'lc-pass':'lc-fail'}" title="L2">2</span>
       <span class="lc ${p3?'lc-pass':'lc-fail'}" title="L3">3</span>
+      <span class="lc ${p5?'lc-pass':'lc-fail'}" title="L5護城河">5</span>
     </span>`;
     h+=`<tr>
       <td style="color:#565e72;font-size:12px">${st+i+1}</td>
@@ -554,6 +597,7 @@ function render(){
       <td class="nr">${fmt(c.np)}</td>
       <td class="nr">${fmtInst(c.inst_total)}</td>
       <td class="nr">${cap}</td>
+      <td class="nr">${moatBadge}</td>
       <td>${lchk}</td>
     </tr>`;
   });
